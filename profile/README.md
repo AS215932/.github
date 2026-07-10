@@ -16,6 +16,102 @@ shared under permissive terms.
 - **Peering policy:** Open — see [PeeringDB](https://www.peeringdb.com/asn/215932)
 - **License:** CC0 / public domain unless otherwise noted
 
+## Hyrule Cloud — agentic infrastructure, paid per request via x402
+
+**[Hyrule Cloud](https://hyrule.host)** is full-stack network infrastructure for
+AI agents, running on AS215932 and billed per request in USDC on Base via
+[x402](https://x402.org). Agents discover it via the x402 Bazaar or the manifest
+below, pay per call, and get bare VMs, DNS, network intelligence, and anonymous
+egress — no account, no KYC, no dashboard required.
+
+- **Compute** — bare IPv6-native VMs with SSH, automatic HTTPS subdomains, and optional custom domains.
+- **Domains & DNS** — domain registration (Openprovider) and DNS management.
+- **Network intelligence** — BGP/routing over AS215932's own tables plus RouteViews/RIPE RIS, IP geolocation/ASN/reputation, DNS (lookup, propagation, DNSSEC, record recommendations), RDAP/WHOIS, web reachability and deep TLS grading, MXToolbox-compatible mail deliverability, port and NAT/CGNAT reachability, and VoIP/SIP diagnostics.
+- **Network proxy** — outbound requests over Direct, Tor, I2P, or Yggdrasil.
+
+| Surface | URL |
+|---------|-----|
+| Website | https://hyrule.host |
+| x402 manifest | https://cloud.hyrule.host/.well-known/x402.json |
+| OpenAPI | https://cloud.hyrule.host/openapi.json |
+| Agent guide (`llms.txt`) | https://hyrule.host/llms.txt |
+| Skills | [ClawHub](https://clawhub.ai) under the `hyrule-` prefix — `hyrule-cloud` (umbrella) and `hyrule-network-intel` |
+
+### Golden path (curl)
+
+Every paid endpoint answers an unpaid request with a `402` carrying the price and
+payment requirements; sign it with any x402-aware client and replay with the
+`X-PAYMENT` header:
+
+```bash
+# 1. Ask — get a 402 with the price + payment requirements
+curl -si https://cloud.hyrule.host/v1/dns/lookup \
+  -H 'content-type: application/json' \
+  -d '{"name":"example.com","type":"AAAA"}'
+# HTTP/1.1 402 Payment Required   (USDC on Base, eip155:8453)
+
+# 2. Pay — replay the same request with the signed payment payload
+curl -si https://cloud.hyrule.host/v1/dns/lookup \
+  -H 'content-type: application/json' \
+  -H 'X-PAYMENT: <signed-payment-payload>' \
+  -d '{"name":"example.com","type":"AAAA"}'
+# HTTP/1.1 200 OK   -> diagnostic evidence
+```
+
+VM provisioning is asynchronous: pay `POST /v1/vm/create` → `200` with a public
+`status_url` (`GET /v1/vm/{id}/status` — no token) plus a save-once
+`management_url`. Poll the `status_url` until `status` is `ready` and it reports
+`{ ipv6, hostname }`, then `ssh root@<hostname>`. Full VM details and lifecycle
+actions (extend, destroy) go through the token-bearing `management_url`.
+
+### Pricing
+
+Payment settles in **USDC on Base (`eip155:8453`)** via the x402 *exact* scheme.
+VM checkout may also accept BTC/XMR when the live payment catalog advertises native
+rails.
+
+**Compute** (per day; free auto-subdomain under `deploy.hyrule.host`)
+
+| Size | vCPU / RAM / Disk | Price |
+|------|-------------------|-------|
+| xs | 1 / 1 GB / 10 GB | $0.05/day |
+| sm | 1 / 1 GB / 20 GB | $0.10/day |
+| md | 2 / 2 GB / 40 GB | $0.20/day |
+| lg | 4 / 4 GB / 80 GB | $0.40/day |
+
+**Network intelligence** (per request) — from **$0.001**; a representative sample:
+
+| Endpoint | Price |
+|----------|-------|
+| `POST /v1/dns/lookup` | $0.001 |
+| `POST /v1/ip/lookup` | $0.003 |
+| `POST /v1/bgp/lookup` | $0.005 |
+| `POST /v1/web/check` | $0.005 |
+| `POST /v1/mx/check` | $0.005 |
+| `POST /v1/web/tls/deep` | $0.10 |
+
+**Network proxy** (per request)
+
+| Route | Price |
+|-------|-------|
+| direct | $0.01 |
+| yggdrasil | $0.03 |
+| tor | $0.05 |
+| i2p | $0.05 |
+
+**Domains & DNS**
+
+| Item | Price |
+|------|-------|
+| Auto subdomain (`*.deploy.hyrule.host`) | free |
+| Domain registration | from $6.00 |
+
+`GET https://cloud.hyrule.host/v1/pricing` returns the live VM, auto-subdomain,
+and proxy prices. The complete per-endpoint catalog — including every network-intel
+lookup and domain registration — lives in the
+[x402 manifest](https://cloud.hyrule.host/.well-known/x402.json) (`minPrice` per
+resource), which is also what the Bazaar and x402 clients read.
+
 ## Repository map
 
 | Repository | Purpose |
