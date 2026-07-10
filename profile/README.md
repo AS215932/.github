@@ -58,9 +58,11 @@ curl -s https://cloud.hyrule.host/v1/dns/lookup \
 # HTTP/1.1 200 OK   -> diagnostic evidence
 ```
 
-VM provisioning is asynchronous: pay `POST /v1/vm/create` → `200` with `status` +
-`status_url` → poll `GET /v1/vm/{id}` until `status` is `ready` and it returns
-`{ ipv6, hostname, ssh }` → `ssh root@…`.
+VM provisioning is asynchronous: pay `POST /v1/vm/create` → `200` with a public
+`status_url` (`GET /v1/vm/{id}/status` — no token) plus a save-once
+`management_url`. Poll the `status_url` until `status` is `ready` and it reports
+`{ ipv6, hostname }`, then `ssh root@<hostname>`. Full VM details and lifecycle
+actions (extend, destroy) go through the token-bearing `management_url`.
 
 ### Pricing
 
