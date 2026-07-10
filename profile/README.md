@@ -58,8 +58,9 @@ curl -s https://cloud.hyrule.host/v1/dns/lookup \
 # HTTP/1.1 200 OK   -> diagnostic evidence
 ```
 
-VM provisioning is asynchronous: pay `POST /v1/vm/create` → `202` + `status_url` →
-poll `GET /v1/vm/{id}` until it returns `{ ipv6, hostname, ssh }` → `ssh root@…`.
+VM provisioning is asynchronous: pay `POST /v1/vm/create` → `200` with `status` +
+`status_url` → poll `GET /v1/vm/{id}` until `status` is `ready` and it returns
+`{ ipv6, hostname, ssh }` → `ssh root@…`.
 
 ### Pricing
 
@@ -103,7 +104,11 @@ rails.
 | Auto subdomain (`*.deploy.hyrule.host`) | free |
 | Domain registration | from $6.00 |
 
-Full, always-current price list: `GET https://cloud.hyrule.host/v1/pricing`.
+`GET https://cloud.hyrule.host/v1/pricing` returns the live VM, auto-subdomain,
+and proxy prices. The complete per-endpoint catalog — including every network-intel
+lookup and domain registration — lives in the
+[x402 manifest](https://cloud.hyrule.host/.well-known/x402.json) (`minPrice` per
+resource), which is also what the Bazaar and x402 clients read.
 
 ## Repository map
 
