@@ -51,7 +51,7 @@ curl -si https://cloud.hyrule.host/v1/dns/lookup \
 # HTTP/1.1 402 Payment Required   (USDC on Base, eip155:8453)
 
 # 2. Pay — replay the same request with the signed payment payload
-curl -s https://cloud.hyrule.host/v1/dns/lookup \
+curl -si https://cloud.hyrule.host/v1/dns/lookup \
   -H 'content-type: application/json' \
   -H 'X-PAYMENT: <signed-payment-payload>' \
   -d '{"name":"example.com","type":"AAAA"}'
