@@ -19,13 +19,13 @@ shared under permissive terms.
 ## Hyrule Cloud — agentic infrastructure, paid per request via x402
 
 **[Hyrule Cloud](https://hyrule.host)** is full-stack network infrastructure for
-AI agents, running on AS215932 and billed per request in USDC on Base via
-[x402](https://x402.org). Agents discover it via the x402 Bazaar or the manifest
+AI agents, running on AS215932 and billed per request in USDC on Base, Polygon,
+or Arbitrum via [x402](https://x402.org). Agents discover it via the x402 Bazaar or the manifest
 below, pay per call, and get bare VMs, DNS, network intelligence, and anonymous
 egress — no account, no KYC, no dashboard required.
 
-- **Compute** — bare IPv6-native VMs with SSH, automatic HTTPS subdomains, and optional custom domains.
-- **Domains & DNS** — domain registration (Openprovider) and DNS management.
+- **Compute** — bare IPv6-native VMs with SSH, automatic HTTPS subdomains, and custom domains (coming soon).
+- **Domains & DNS** — *coming soon.* Domain registration and managed DNS are not yet launched; every VM already gets a free `*.deploy.hyrule.host` subdomain.
 - **Network intelligence** — BGP/routing over AS215932's own tables plus RouteViews/RIPE RIS, IP geolocation/ASN/reputation, DNS (lookup, propagation, DNSSEC, record recommendations), RDAP/WHOIS, web reachability and deep TLS grading, MXToolbox-compatible mail deliverability, port and NAT/CGNAT reachability, and VoIP/SIP diagnostics.
 - **Network proxy** — outbound requests over Direct, Tor, I2P, or Yggdrasil.
 
@@ -35,49 +35,56 @@ egress — no account, no KYC, no dashboard required.
 | x402 manifest | https://cloud.hyrule.host/.well-known/x402.json |
 | OpenAPI | https://cloud.hyrule.host/openapi.json |
 | Agent guide (`llms.txt`) | https://hyrule.host/llms.txt |
-| Skills | [ClawHub](https://clawhub.ai) under the `hyrule-` prefix — `hyrule-cloud` (umbrella) and `hyrule-network-intel` |
 
 ### Golden path (curl)
 
 Every paid endpoint answers an unpaid request with a `402` carrying the price and
-payment requirements; sign it with any x402-aware client and replay with the
-`X-PAYMENT` header:
+payment requirements (`PAYMENT-REQUIRED` header); sign it with any x402-aware
+client and replay with the `Payment-Signature` header:
 
 ```bash
 # 1. Ask — get a 402 with the price + payment requirements
 curl -si https://cloud.hyrule.host/v1/dns/lookup \
   -H 'content-type: application/json' \
   -d '{"name":"example.com","type":"AAAA"}'
-# HTTP/1.1 402 Payment Required   (USDC on Base, eip155:8453)
+# HTTP/1.1 402 Payment Required   (USDC on Base, Polygon, or Arbitrum)
 
 # 2. Pay — replay the same request with the signed payment payload
 curl -si https://cloud.hyrule.host/v1/dns/lookup \
   -H 'content-type: application/json' \
-  -H 'X-PAYMENT: <signed-payment-payload>' \
+  -H 'Payment-Signature: <signed-payment-payload>' \
   -d '{"name":"example.com","type":"AAAA"}'
 # HTTP/1.1 200 OK   -> diagnostic evidence
 ```
 
-VM provisioning is asynchronous: pay `POST /v1/vm/create` → `200` with a public
+VM provisioning is asynchronous: pay `POST /v1/vm/create` → `202` with a public
 `status_url` (`GET /v1/vm/{id}/status` — no token) plus a save-once
 `management_url`. Poll the `status_url` until `status` is `ready` and it reports
 `{ ipv6, hostname }`, then `ssh root@<hostname>`. Full VM details and lifecycle
 actions (extend, destroy) go through the token-bearing `management_url`.
 
+Typical builds complete in about 60 seconds (the live average is shown on
+[hyrule.host](https://hyrule.host)). Runtime is prepaid for 1–365 days and can be
+extended; expired VMs are suspended and destroyed after a 24-hour grace period.
+
 ### Pricing
 
-Payment settles in **USDC on Base (`eip155:8453`)** via the x402 *exact* scheme.
-VM checkout may also accept BTC/XMR when the live payment catalog advertises native
-rails.
+Payment settles in **USDC on Base (`eip155:8453`), Polygon (`eip155:137`), or
+Arbitrum (`eip155:42161`)** via the x402 *exact* scheme. VM checkout also accepts
+native **XMR**. `GET https://cloud.hyrule.host/v1/payments/networks` lists the
+currently enabled rails.
 
 **Compute** (per day; free auto-subdomain under `deploy.hyrule.host`)
 
 | Size | vCPU / RAM / Disk | Price |
 |------|-------------------|-------|
-| xs | 1 / 1 GB / 10 GB | $0.05/day |
-| sm | 1 / 1 GB / 20 GB | $0.10/day |
-| md | 2 / 2 GB / 40 GB | $0.20/day |
-| lg | 4 / 4 GB / 80 GB | $0.40/day |
+| xs (1C-1G-10G) | 1 / 1 GB / 10 GB | $0.20/day |
+| sm (1C-2G-20G) | 1 / 2 GB / 20 GB | $0.40/day |
+| md (2C-4G-20G) | 2 / 4 GB / 20 GB | $0.60/day |
+| lg (4C-4G-40G) | 4 / 4 GB / 40 GB | $0.80/day |
+
+Custom sizes up to 4 vCPU / 8 GB RAM / 40 GB disk, with add-ons at $0.10 per
+vCPU/day, $0.15 per GB RAM/day, and $0.05 per 10 GB disk/day.
 
 **Network intelligence** (per request) — from **$0.001**; a representative sample:
 
@@ -85,7 +92,7 @@ rails.
 |----------|-------|
 | `POST /v1/dns/lookup` | $0.001 |
 | `POST /v1/ip/lookup` | $0.003 |
-| `POST /v1/bgp/lookup` | $0.005 |
+| `POST /v1/bgp/lookup` | $0.005–$0.01 |
 | `POST /v1/web/check` | $0.005 |
 | `POST /v1/mx/check` | $0.005 |
 | `POST /v1/web/tls/deep` | $0.10 |
@@ -104,11 +111,11 @@ rails.
 | Item | Price |
 |------|-------|
 | Auto subdomain (`*.deploy.hyrule.host`) | free |
-| Domain registration | from $6.00 |
+| Domain registration & managed DNS | coming soon |
 
 `GET https://cloud.hyrule.host/v1/pricing` returns the live VM, auto-subdomain,
 and proxy prices. The complete per-endpoint catalog — including every network-intel
-lookup and domain registration — lives in the
+lookup — lives in the
 [x402 manifest](https://cloud.hyrule.host/.well-known/x402.json) (`minPrice` per
 resource), which is also what the Bazaar and x402 clients read.
 
